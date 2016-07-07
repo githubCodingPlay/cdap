@@ -14,83 +14,13 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-# Source function library. used for "status" use case
-if [ -f /etc/rc.d/init.d/functions ]; then
-  PLATFORM="RHEL"
-  source /etc/rc.d/init.d/functions
-elif [ -f /lib/lsb/init-functions ] ; then
-  PLATFORM="UBUNTU"
-  source /lib/lsb/init-functions
-else
-  echo "Platform is unsupported."
-  exit 1
-fi
 
-SVCNAME=${0##*/}
 
-if [[ "${SVCNAME}" == "service" ]]; then
-  echo "Create a soft link to this script as svc-<component>"
-  echo "Example: ln -s service svc-<component>"
-  exit 1
-fi
-
-# APP is shortened SVCNAME
-APP=${SVCNAME##svc-}
-export APP
-
-# Determine symlink target (full path)
-TARGET=$(readlink ${0}) # TODO: readlink isn't always available
-if [[ $? -ne 0 ]]; then
-  echo "Create a soft link to this script as svc-<component>"
-  echo "Example: ln -s service svc-<component>"
-  exit 1
-fi
-
-# Determine package name by applying regex to the target of the symlink being run
-COMPONENT_HOME=${TARGET%/*/*}
-COMPONENT_BIN="${COMPONENT_HOME}"/bin
-PKGNAME=${COMPONENT_HOME##*/}
-if [[ -z "${PKGNAME}" ]]; then
-  echo "Create a soft link to this script as svc-<component>"
-  echo "Example: ln -s service svc-<component>"
-  exit 1
-fi
-
-# Set CDAP_HOME from COMPONENT_HOME if not set
-CDAP_HOME="${CDAP_HOME:-${COMPONENT_HOME%/*}}"
-
-# Default CDAP_CONF to /etc/cdap/conf (package default)
-CDAP_CONF=${CDAP_CONF:-/etc/cdap/conf}
-
-export CDAP_HOME CDAP_CONF COMPONENT_HOME
-
-# Load variables/functions from COMPONENT_HOME
-for i in bin/common-env.sh bin/common.sh conf/${APP}-env.sh; do
-  test -f "${COMPONENT_HOME}"/${i} && source ${COMPONENT_HOME}/${i}
-done
-
-# Load user-modifiable configuration
-test -f "${CDAP_CONF}"/cdap-env.sh && source "${CDAP_CONF}"/cdap-env.sh
 
 # Set JAVA_HEAPMAX from variable defined in JAVA_HEAP_VAR, unless defined already
 JAVA_HEAPMAX=${JAVA_HEAPMAX:-${!JAVA_HEAP_VAR}}
 export JAVA_HEAPMAX
 
-logecho() {
-  echo ${*} | tee -a ${loglog}
-}
-
-# Start a non-Java application with arguments in the background
-_start_bin() {
-  cdap_check_before_start || exit 0 # Error output is done in function
-  cdap_create_pid_dir || die "Could not create PID dir: ${PID_DIR}"
-  logecho "$(date) Starting ${APP} service on ${HOSTNAME}"
-  ulimit -a >>${loglog} 2>&1
-  nohup nice -n ${NICENESS} ${MAIN_CMD} ${MAIN_CMD_ARGS} </dev/null >>${loglog} 2>&1 &
-  echo $! >${pid}
-  kill -0 $(<${pid}) 2>/dev/null
-  return $?
-}
 
 # Start a Java application from class name with arguments in the background
 _start_java() {
