@@ -35,8 +35,6 @@ import co.cask.cdap.data.runtime.DataSetsModules;
 import co.cask.cdap.data.stream.StreamAdminModules;
 import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.audit.AuditModule;
-import co.cask.cdap.data2.security.RemoteUGIProvider;
-import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.explore.executor.ExploreExecutorService;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.explore.guice.ExploreRuntimeModule;
@@ -142,7 +140,6 @@ public class ExploreServiceTwillRunnable extends AbstractMasterTwillRunnable {
         protected void configure() {
           bind(Store.class).to(DefaultStore.class);
           bind(NamespaceStore.class).to(DefaultNamespaceStore.class);
-          bind(UGIProvider.class).to(RemoteUGIProvider.class).in(Scopes.SINGLETON);
         }
       });
   }

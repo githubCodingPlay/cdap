@@ -20,6 +20,8 @@ import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.runtime.RuntimeModule;
 import co.cask.cdap.data2.datafabric.dataset.RemoteDatasetFramework;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.data2.util.hbase.HBaseTableUtilFactory;
 import co.cask.cdap.explore.executor.ExploreExecutorHttpHandler;
 import co.cask.cdap.explore.executor.ExploreExecutorService;
@@ -281,6 +283,8 @@ public class ExploreRuntimeModule extends RuntimeModule {
         }
         LOG.info("Storing credentials files in {}", credentialsDir.getAbsolutePath());
         bind(File.class).annotatedWith(Names.named(Constants.Explore.CREDENTIALS_DIR_NAME)).toInstance(credentialsDir);
+
+        bind(UGIProvider.class).to(RemoteUGIProvider.class).in(Scopes.SINGLETON);
       } catch (Throwable e) {
         throw Throwables.propagate(e);
       }

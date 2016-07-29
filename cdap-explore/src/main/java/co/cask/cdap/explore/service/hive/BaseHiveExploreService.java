@@ -24,6 +24,7 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.namespace.NamespaceQueryAdmin;
 import co.cask.cdap.data.dataset.SystemDatasetInstantiatorFactory;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.security.Impersonator;
 import co.cask.cdap.data2.transaction.stream.StreamAdmin;
 import co.cask.cdap.explore.service.Explore;
 import co.cask.cdap.explore.service.ExploreException;
@@ -159,6 +160,7 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
   private final File credentialsDir;
   private final ScheduledExecutorService metastoreClientsExecutorService;
   private final NamespaceQueryAdmin namespaceQueryAdmin;
+  private final Impersonator impersonator;
 
   private final ThreadLocal<Supplier<IMetaStoreClient>> metastoreClientLocal;
 
@@ -188,7 +190,8 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
                                    CConfiguration cConf, Configuration hConf,
                                    File previewsDir, File credentialsDir, StreamAdmin streamAdmin,
                                    NamespaceQueryAdmin namespaceQueryAdmin,
-                                   SystemDatasetInstantiatorFactory datasetInstantiatorFactory) {
+                                   SystemDatasetInstantiatorFactory datasetInstantiatorFactory,
+                                   Impersonator impersonator) {
     this.cConf = cConf;
     this.hConf = hConf;
     this.schedulerQueueResolver = new SchedulerQueueResolver(cConf, namespaceQueryAdmin);
@@ -198,6 +201,7 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
     this.metastoreClientReferences = Maps.newConcurrentMap();
     this.metastoreClientReferenceQueue = new ReferenceQueue<>();
     this.namespaceQueryAdmin = namespaceQueryAdmin;
+    this.impersonator = impersonator;
 
     // Create a Timer thread to periodically collect metastore clients that are no longer in used and call close on them
     this.metastoreClientsExecutorService =
@@ -209,7 +213,7 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
     this.activeHandleCache =
       CacheBuilder.newBuilder()
         .expireAfterWrite(cConf.getLong(Constants.Explore.ACTIVE_OPERATION_TIMEOUT_SECS), TimeUnit.SECONDS)
-        .removalListener(new ActiveOperationRemovalHandler(this, scheduledExecutorService))
+        .removalListener(new ActiveOperationRemovalHandler(this, scheduledExecutorService, impersonator))
         .build();
     this.inactiveHandleCache =
       CacheBuilder.newBuilder()
@@ -1229,21 +1233,30 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
    * Starts a long running transaction, and also sets up session configuration.
    * @return configuration for a hive session that contains a transaction, and serialized CDAP configuration and
    * HBase configuration. This will be used by the map-reduce tasks started by Hive.
-   * @throws IOException
    * @throws ExploreException
    */
-  private Map<String, String> startSession()
-    throws IOException, ExploreException, NamespaceNotFoundException {
+  private Map<String, String> startSession() throws ExploreException, NamespaceNotFoundException {
     return startSession(null);
   }
 
   private Map<String, String> startSession(@Nullable Id.Namespace namespace)
-    throws IOException, ExploreException, NamespaceNotFoundException {
+    throws ExploreException, NamespaceNotFoundException {
     return startSession(namespace, null);
   }
 
   private Map<String, String> startSession(@Nullable Id.Namespace namespace,
                                            @Nullable Map<String, String> additionalSessionConf)
+    throws ExploreException, NamespaceNotFoundException {
+    try {
+      return doStartSession(namespace, additionalSessionConf);
+    } catch (IOException e) {
+      // propagate IOException as ExploreException
+      throw new ExploreException(e);
+    }
+  }
+
+  private Map<String, String> doStartSession(@Nullable Id.Namespace namespace,
+                                             @Nullable Map<String, String> additionalSessionConf)
     throws IOException, ExploreException, NamespaceNotFoundException {
 
     Map<String, String> sessionConf = Maps.newHashMap();
@@ -1252,7 +1265,7 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
     sessionConf.put(Constants.Explore.QUERY_ID, queryHandle.getHandle());
 
     String schedulerQueue = namespace != null ? schedulerQueueResolver.getQueue(namespace)
-                                              : schedulerQueueResolver.getDefaultQueue();
+      : schedulerQueueResolver.getDefaultQueue();
 
     if (schedulerQueue != null && !schedulerQueue.isEmpty()) {
       sessionConf.put(JobContext.QUEUE_NAME, schedulerQueue);
