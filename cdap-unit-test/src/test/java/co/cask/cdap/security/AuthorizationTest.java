@@ -18,6 +18,7 @@ package co.cask.cdap.security;
 
 import co.cask.cdap.AllProgramsApp;
 import co.cask.cdap.ConfigTestApp;
+import co.cask.cdap.api.dataset.lib.KeyValueTable;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.utils.Tasks;
@@ -42,12 +43,17 @@ import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import co.cask.cdap.test.ApplicationManager;
 import co.cask.cdap.test.ArtifactManager;
+import co.cask.cdap.test.DataSetManager;
+import co.cask.cdap.test.FlowManager;
 import co.cask.cdap.test.ServiceManager;
 import co.cask.cdap.test.SlowTests;
+import co.cask.cdap.test.StreamManager;
 import co.cask.cdap.test.TestBase;
 import co.cask.cdap.test.TestConfiguration;
+import co.cask.cdap.test.app.CrossNsDatasetAccessApp;
 import co.cask.cdap.test.app.DummyApp;
 import co.cask.cdap.test.artifacts.plugins.ToStringPlugin;
+import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -541,6 +547,51 @@ public class AuthorizationTest extends TestBase {
     SecurityRequestContext.setUserId(ALICE.getName());
     dummyAppManager.delete();
     assertNoAccess(appId);
+  }
+
+  @Test
+  public void testCrossNSDatasetAccessWithAuth() throws Exception {
+    createAuthNamespace();
+    getNamespaceAdmin().create(new NamespaceMeta.Builder()
+                                 .setName(CrossNsDatasetAccessApp.DATASET_OUTPUT_SPACE).build());
+    NamespaceId datasetOutputSpace = new NamespaceId(CrossNsDatasetAccessApp.DATASET_OUTPUT_SPACE);
+    addDatasetInstance(datasetOutputSpace.toId(), "keyValueTable", "store");
+    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), CrossNsDatasetAccessApp.class);
+
+    // Send stream and run the flowlet as BOB. Should fail
+    StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), CrossNsDatasetAccessApp.STREAM_NAME);
+    for (int i = 0; i < 10; i++) {
+      streamManager.send(String.valueOf(i).getBytes());
+    }
+    Authorizer authorizer = getAuthorizer();
+    authorizer.grant(AUTH_NAMESPACE, BOB, ImmutableSet.of(Action.ALL));
+    SecurityRequestContext.setUserId(BOB.getName());
+    try {
+      FlowManager flowManager = appManager.getFlowManager(CrossNsDatasetAccessApp.FLOW_NAME);
+      flowManager.start();
+      Assert.fail("Bob don't have the privlege to write to the dataset. Failed");
+    } catch (Exception e) {
+      // Expected
+    }
+
+    // Switch back to ALICE. Should Success
+    SecurityRequestContext.setUserId(ALICE.getName());
+    FlowManager flowManager = appManager.getFlowManager(CrossNsDatasetAccessApp.FLOW_NAME);
+    flowManager.start();
+    for (int i = 0; i < 10; i++) {
+      streamManager.send(String.valueOf(i).getBytes());
+    }
+    flowManager.getFlowletMetrics("saver").waitForProcessed(10, 30, TimeUnit.SECONDS);
+
+    DataSetManager<KeyValueTable> dataSetManager = getDataset(datasetOutputSpace.toId(), "store");
+    KeyValueTable results = dataSetManager.get();
+    for (int i = 0; i < 10; i++) {
+      byte[] key = String.valueOf(i).getBytes(Charsets.UTF_8);
+      Assert.assertArrayEquals(key, results.read(key));
+    }
+
+    flowManager.stop();
+    getNamespaceAdmin().delete(datasetOutputSpace.toId());
   }
 
   @After
