@@ -19,13 +19,16 @@ package co.cask.cdap.app.stream;
 import co.cask.cdap.api.data.stream.StreamBatchWriter;
 import co.cask.cdap.api.data.stream.StreamWriter;
 import co.cask.cdap.api.stream.StreamEventData;
+import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.discovery.EndpointStrategy;
 import co.cask.cdap.common.discovery.RandomEndpointStrategy;
+import co.cask.cdap.common.kerberos.SecurityUtil;
 import co.cask.cdap.data2.metadata.lineage.AccessType;
 import co.cask.cdap.data2.metadata.writer.LineageWriter;
 import co.cask.cdap.data2.registry.RuntimeUsageRegistry;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.security.spi.authentication.AuthenticationContext;
 import co.cask.common.http.HttpMethod;
 import co.cask.common.http.HttpRequest;
 import co.cask.common.http.HttpRequests;
@@ -69,13 +72,17 @@ public class DefaultStreamWriter implements StreamWriter {
   private final Iterable<? extends Id> owners;
   private final Id.Run run;
   private final LineageWriter lineageWriter;
+  private final AuthenticationContext authenticationContext;
+  private final boolean kerberosEnabled;
 
   @Inject
   public DefaultStreamWriter(@Assisted("run") Id.Run run,
                              @Assisted("owners") Iterable<? extends Id> owners,
                              RuntimeUsageRegistry runtimeUsageRegistry,
                              LineageWriter lineageWriter,
-                             DiscoveryServiceClient discoveryServiceClient) {
+                             DiscoveryServiceClient discoveryServiceClient,
+                             AuthenticationContext authenticationContext,
+                             CConfiguration cConf) {
     this.run = run;
     this.namespace = run.getNamespace();
     this.owners = owners;
@@ -83,6 +90,8 @@ public class DefaultStreamWriter implements StreamWriter {
     this.endpointStrategy = new RandomEndpointStrategy(discoveryServiceClient.discover(Constants.Service.STREAMS));
     this.isStreamRegistered = Maps.newConcurrentMap();
     this.runtimeUsageRegistry = runtimeUsageRegistry;
+    this.authenticationContext = authenticationContext;
+    this.kerberosEnabled = SecurityUtil.isKerberosEnabled(cConf);
   }
 
   private URL getStreamURL(String stream) throws IOException {
@@ -151,7 +160,8 @@ public class DefaultStreamWriter implements StreamWriter {
   @Override
   public void writeFile(String stream, File file, String contentType) throws IOException {
     URL url = getStreamURL(stream, true);
-    HttpRequest request = HttpRequest.post(url).withBody(file).addHeader(HttpHeaders.CONTENT_TYPE, contentType).build();
+    HttpRequest request = addUserIdHeader(HttpRequest.post(url)).withBody(file)
+      .addHeader(HttpHeaders.CONTENT_TYPE, contentType).build();
     writeToStream(Id.Stream.from(namespace, stream), request);
   }
 
@@ -163,6 +173,9 @@ public class DefaultStreamWriter implements StreamWriter {
     connection.setReadTimeout(15000);
     connection.setConnectTimeout(15000);
     connection.setRequestProperty(HttpHeaders.CONTENT_TYPE, contentType);
+    if (kerberosEnabled) {
+      connection.setRequestProperty(Constants.Security.Headers.USER_ID, getUserId());
+    }
     connection.setDoOutput(true);
     connection.setChunkedStreamingMode(0);
     connection.connect();
@@ -174,6 +187,17 @@ public class DefaultStreamWriter implements StreamWriter {
       connection.disconnect();
       throw e;
     }
+  }
+
+  private HttpRequest.Builder addUserIdHeader(HttpRequest.Builder builder) throws IOException {
+    if (!kerberosEnabled) {
+      return builder;
+    }
+    return builder.addHeader(Constants.Security.Headers.USER_ID, getUserId());
+  }
+
+  private String getUserId() {
+    return authenticationContext.getPrincipal().getName();
   }
 
   private void registerStream(Id.Stream stream) {

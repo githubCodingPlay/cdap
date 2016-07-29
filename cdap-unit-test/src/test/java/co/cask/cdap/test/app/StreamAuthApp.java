@@ -23,21 +23,25 @@ import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
 import co.cask.cdap.api.mapreduce.AbstractMapReduce;
 import co.cask.cdap.api.mapreduce.MapReduceContext;
+import co.cask.cdap.api.worker.AbstractWorker;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 /**
  * App which copies data from a stream to KVTable using a MapReduce program.
  */
-public class StreamWithMRApp extends AbstractApplication {
+public class StreamAuthApp extends AbstractApplication {
 
   public static final String APP = "StreamWithMRApp";
   public static final String STREAM = "inputStream";
   public static final String MAPREDUCE = "MRCopy";
   public static final String KVTABLE = "kvtable";
+  public static final String WORKER = "StreamWriter";
 
   @Override
   public void configure() {
@@ -46,6 +50,7 @@ public class StreamWithMRApp extends AbstractApplication {
     addStream(STREAM);
     createDataset(KVTABLE, KeyValueTable.class);
     addMapReduce(new CopyMapReduce());
+    addWorker(new StreamWriter());
   }
 
   public static class CopyMapReduce extends AbstractMapReduce {
@@ -69,6 +74,27 @@ public class StreamWithMRApp extends AbstractApplication {
 
       public void map(LongWritable ts, String event, Context context) throws IOException, InterruptedException {
         context.write(Bytes.toBytes(event), Bytes.toBytes(event));
+      }
+    }
+  }
+
+  public static class StreamWriter extends AbstractWorker {
+    public static final Logger LOG = LoggerFactory.getLogger(StreamWriter.class);
+
+    @Override
+    protected void configure() {
+      super.configure();
+      setName(WORKER);
+    }
+
+    @Override
+    public void run() {
+      for (int i = 0; i < 5; i++) {
+        try {
+          getContext().write(STREAM, String.format("Hello%d", i));
+        } catch (IOException e) {
+          LOG.debug("Error writing to Stream {}", STREAM, e);
+        }
       }
     }
   }

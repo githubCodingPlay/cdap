@@ -55,8 +55,9 @@ import co.cask.cdap.test.SlowTests;
 import co.cask.cdap.test.StreamManager;
 import co.cask.cdap.test.TestBase;
 import co.cask.cdap.test.TestConfiguration;
+import co.cask.cdap.test.WorkerManager;
 import co.cask.cdap.test.app.DummyApp;
-import co.cask.cdap.test.app.StreamWithMRApp;
+import co.cask.cdap.test.app.StreamAuthApp;
 import co.cask.cdap.test.artifacts.plugins.ToStringPlugin;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
@@ -191,13 +192,50 @@ public class AuthorizationTest extends TestBase {
 
   @Test
   @Category(SlowTests.class)
+  public void testWorkerStreamAuth() throws Exception {
+    createAuthNamespace();
+    Authorizer authorizer = getAuthorizer();
+    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), StreamAuthApp.class);
+    WorkerManager workerManager = appManager.getWorkerManager(StreamAuthApp.WORKER);
+    workerManager.start();
+    workerManager.waitForFinish(5, TimeUnit.SECONDS);
+    try {
+      workerManager.stop();
+    } catch (Exception e) {
+      // workaround since we want worker job to be de-listed from the running processes to allow cleanup to happen
+      Assert.assertTrue(e.getCause() instanceof BadRequestException);
+    }
+    StreamId streamId = new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM);
+    StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
+    Assert.assertEquals(5, streamManager.getEvents(0, Long.MAX_VALUE, Integer.MAX_VALUE).size());
+
+    // Now revoke write permission for Alice on that stream (revoke ALL and then grant everything other than READ)
+    authorizer.revoke(streamId, ALICE, ImmutableSet.of(Action.ALL));
+    authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.READ, Action.ADMIN, Action.EXECUTE));
+    workerManager.start();
+    workerManager.waitForFinish(5, TimeUnit.SECONDS);
+    try {
+      workerManager.stop();
+    } catch (Exception e) {
+      // workaround since we want worker job to be de-listed from the running processes to allow cleanup to happen
+      Assert.assertTrue(e.getCause() instanceof BadRequestException);
+    }
+    // Give permissions back so that we can fetch the stream events
+    authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.ALL));
+    Assert.assertEquals(5, streamManager.getEvents(0, Long.MAX_VALUE, Integer.MAX_VALUE).size());
+    appManager.delete();
+    assertNoAccess(new ApplicationId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.APP));
+  }
+
+  @Test
+  @Category(SlowTests.class)
   public void testMRStreamAuth() throws Exception {
     createAuthNamespace();
     Authorizer authorizer = getAuthorizer();
-    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), StreamWithMRApp.class);
-    StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamWithMRApp.STREAM);
+    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), StreamAuthApp.class);
+    StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
     streamManager.send("Hello");
-    final MapReduceManager mrManager = appManager.getMapReduceManager(StreamWithMRApp.MAPREDUCE);
+    final MapReduceManager mrManager = appManager.getMapReduceManager(StreamAuthApp.MAPREDUCE);
     mrManager.start();
     mrManager.waitForFinish(10, TimeUnit.SECONDS);
     try {
@@ -206,7 +244,7 @@ public class AuthorizationTest extends TestBase {
       // workaround since we want mr job to be de-listed from the running processes to allow cleanup to happen
       Assert.assertTrue(e.getCause() instanceof BadRequestException);
     }
-    DataSetManager<KeyValueTable> kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamWithMRApp.KVTABLE);
+    DataSetManager<KeyValueTable> kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
     KeyValueTable kvTable = kvManager.get();
     byte[] value = kvTable.read("Hello");
     Assert.assertArrayEquals(value, Bytes.toBytes("Hello"));
@@ -219,8 +257,8 @@ public class AuthorizationTest extends TestBase {
       }
     }, 5, TimeUnit.SECONDS);
 
-    ProgramId mrId = new ProgramId(AUTH_NAMESPACE.getNamespace(), StreamWithMRApp.APP, ProgramType.MAPREDUCE,
-                                   StreamWithMRApp.MAPREDUCE);
+    ProgramId mrId = new ProgramId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.APP, ProgramType.MAPREDUCE,
+                                   StreamAuthApp.MAPREDUCE);
     authorizer.grant(mrId.getNamespaceId(), BOB, ImmutableSet.of(Action.ALL));
     ArtifactSummary artifactSummary = appManager.getInfo().getArtifact();
 
@@ -229,9 +267,9 @@ public class AuthorizationTest extends TestBase {
     authorizer.grant(artifactId, BOB, ImmutableSet.of(Action.ALL));
     authorizer.grant(mrId.getParent(), BOB, ImmutableSet.of(Action.ALL));
     authorizer.grant(mrId, BOB, ImmutableSet.of(Action.ALL));
-    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamWithMRApp.STREAM), BOB,
+    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM), BOB,
                      ImmutableSet.of(Action.ADMIN));
-    authorizer.grant(new DatasetId(AUTH_NAMESPACE.getNamespace(), StreamWithMRApp.KVTABLE), BOB,
+    authorizer.grant(new DatasetId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.KVTABLE), BOB,
                      ImmutableSet.of(Action.ALL));
     streamManager.send("World");
 
@@ -252,14 +290,14 @@ public class AuthorizationTest extends TestBase {
         return mrManager.getHistory(ProgramRunStatus.FAILED).size();
       }
     }, 5, TimeUnit.SECONDS);
-    kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamWithMRApp.KVTABLE);
+    kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
     kvTable = kvManager.get();
     value = kvTable.read("World");
     Assert.assertNull(value);
     kvTable.close();
 
     // Now grant Bob, READ access on the stream. MR job should execute successfully now.
-    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamWithMRApp.STREAM), BOB,
+    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM), BOB,
                      ImmutableSet.of(Action.READ));
     mrManager.start();
     mrManager.waitForFinish(10, TimeUnit.SECONDS);
@@ -276,7 +314,7 @@ public class AuthorizationTest extends TestBase {
         return mrManager.getHistory(ProgramRunStatus.COMPLETED).size();
       }
     }, 5, TimeUnit.SECONDS);
-    kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamWithMRApp.KVTABLE);
+    kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
     kvTable = kvManager.get();
     value = kvTable.read("World");
     Assert.assertEquals("World", Bytes.toString(value));
@@ -284,7 +322,7 @@ public class AuthorizationTest extends TestBase {
 
     SecurityRequestContext.setUserId(ALICE.getName());
     appManager.delete();
-    assertNoAccess(new ApplicationId(AUTH_NAMESPACE.getNamespace(), StreamWithMRApp.APP));
+    assertNoAccess(new ApplicationId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.APP));
   }
 
   @Test
