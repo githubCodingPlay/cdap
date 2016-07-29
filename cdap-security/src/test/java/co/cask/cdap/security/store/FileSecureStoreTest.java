@@ -23,6 +23,8 @@ import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.namespace.InMemoryNamespaceClient;
+import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.NamespaceMeta;
 import com.google.common.collect.ImmutableList;
 import org.apache.commons.io.Charsets;
 import org.junit.After;
@@ -41,6 +43,7 @@ import java.util.Map;
 public class FileSecureStoreTest {
 
   private static final String NAMESPACE1 = "default";
+  private static final String NAMESPACE2 = "namespace2";
   private static final String STORE_PATH = System.getProperty("java.io.tmpdir");
   private static final String KEY1 = "key1";
   private static final String VALUE1 = "value1";
@@ -68,7 +71,16 @@ public class FileSecureStoreTest {
   public void setUp() throws Exception {
     CConfiguration conf = CConfiguration.create();
     conf.set(Constants.Security.Store.FILE_PATH, STORE_PATH);
-    FileSecureStore fileSecureStore = new FileSecureStore(conf, new InMemoryNamespaceClient());
+    InMemoryNamespaceClient namespaceClient = new InMemoryNamespaceClient();
+    NamespaceMeta namespaceMeta = new NamespaceMeta.Builder()
+      .setName(new Id.Namespace(NAMESPACE1))
+      .build();
+    namespaceClient.create(namespaceMeta);
+    namespaceMeta = new NamespaceMeta.Builder()
+      .setName(new Id.Namespace(NAMESPACE2))
+      .build();
+    namespaceClient.create(namespaceMeta);
+    FileSecureStore fileSecureStore = new FileSecureStore(conf, namespaceClient);
     secureStoreManager = fileSecureStore;
     secureStore = fileSecureStore;
   }
@@ -153,15 +165,15 @@ public class FileSecureStoreTest {
   @Test
   public void testMultipleNamespaces() throws Exception {
     populateStore();
-    String ns = "namespace2";
-    secureStoreManager.putSecureData(ns, KEY1, VALUE1.getBytes(Charsets.UTF_8), DESCRIPTION1, PROPERTIES_1);
+    secureStoreManager.putSecureData(NAMESPACE2, KEY1, VALUE1.getBytes(Charsets.UTF_8), DESCRIPTION1, PROPERTIES_1);
     List<SecureStoreMetadata> expectedList =
       ImmutableList.of(secureStore.getSecureData(NAMESPACE1, KEY2).getMetadata(),
                        secureStore.getSecureData(NAMESPACE1, KEY1).getMetadata());
     Assert.assertEquals(expectedList, secureStore.listSecureData(NAMESPACE1));
-    Assert.assertNotEquals(expectedList, secureStore.listSecureData(ns));
-    List<SecureStoreMetadata> expectedList2 = ImmutableList.of(secureStore.getSecureData(ns, KEY1).getMetadata());
-    Assert.assertEquals(expectedList2, secureStore.listSecureData(ns));
+    Assert.assertNotEquals(expectedList, secureStore.listSecureData(NAMESPACE2));
+    List<SecureStoreMetadata> expectedList2 = ImmutableList.of(secureStore.getSecureData(NAMESPACE2, KEY1)
+                                                                 .getMetadata());
+    Assert.assertEquals(expectedList2, secureStore.listSecureData(NAMESPACE2));
     Assert.assertNotEquals(expectedList2, secureStore.listSecureData(NAMESPACE1));
   }
 }
