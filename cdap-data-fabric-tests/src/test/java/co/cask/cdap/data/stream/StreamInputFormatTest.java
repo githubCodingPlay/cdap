@@ -28,6 +28,7 @@ import co.cask.cdap.data.stream.decoder.IdentityStreamEventDecoder;
 import co.cask.cdap.data.stream.decoder.StringStreamEventDecoder;
 import co.cask.cdap.data.stream.decoder.TextStreamEventDecoder;
 import co.cask.cdap.format.TextRecordFormat;
+import co.cask.cdap.proto.id.StreamId;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -74,6 +75,7 @@ public class StreamInputFormatTest {
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static final long CURRENT_TIME = 2000;
+  private static final StreamId DUMMY_ID = new StreamId("ns", "str");
 
   @Test
   public void testTTL() throws Exception {
@@ -297,6 +299,7 @@ public class StreamInputFormatTest {
     // one from 0 - some offset and one from offset - Long.MAX_VALUE.
     Configuration conf = new Configuration();
     TaskAttemptContext context = new TaskAttemptContextImpl(conf, new TaskAttemptID());
+    StreamInputFormat.setStreamId(conf, DUMMY_ID);
     StreamInputFormat.setStreamPath(conf, inputDir.toURI());
     StreamInputFormat format = new StreamInputFormat();
     List<InputSplit> splits = format.getSplits(new JobContextImpl(new JobConf(conf), new JobID()));
@@ -344,6 +347,7 @@ public class StreamInputFormatTest {
                               Schema.recordOf("event", Schema.Field.of("body", Schema.of(Schema.Type.STRING))),
                               Collections.<String, String>emptyMap());
     Configuration conf = new Configuration();
+    StreamInputFormat.setStreamId(conf, DUMMY_ID);
     StreamInputFormat.setBodyFormatSpecification(conf, formatSpec);
     StreamInputFormat.setStreamPath(conf, inputDir.toURI());
     TaskAttemptContext context = new TaskAttemptContextImpl(conf, new TaskAttemptID());
@@ -404,6 +408,7 @@ public class StreamInputFormatTest {
     Job job = Job.getInstance();
     Configuration conf = job.getConfiguration();
 
+    StreamInputFormat.setStreamId(conf, DUMMY_ID);
     StreamInputFormat.setTTL(conf, ttl);
     StreamInputFormat.setStreamPath(conf, inputDir.toURI());
     StreamInputFormat.setTimeRange(conf, startTime, endTime);

@@ -284,7 +284,7 @@ class DefaultSparkExecutionContext(runtimeContext: SparkRuntimeContext,
     val streamConfig = runtimeContext.getStreamAdmin.getConfig(streamId.toId)
     val streamPath = StreamUtils.createGenerationLocation(streamConfig.getLocation,
                                                           StreamUtils.getGeneration(streamConfig))
-
+    StreamInputFormat.setStreamId(configuration, streamId)
     StreamInputFormat.setTTL(configuration, streamConfig.getTTL)
     StreamInputFormat.setStreamPath(configuration, streamPath.toURI)
     StreamInputFormat.setTimeRange(configuration, startTime, endTime)
