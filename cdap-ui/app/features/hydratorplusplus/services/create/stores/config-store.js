@@ -206,14 +206,15 @@ class HydratorPlusPlusConfigStore {
     if ( this.GLOBALS.etlBatchPipelines.indexOf(appType) !== -1) {
       config.schedule = this.getSchedule();
       config.engine = this.getEngine();
-      if (this.getMemoryMb() || this.getVirtualCores()) {
-        config.resources = {
-          memoryMb: this.getMemoryMb(),
-          virtualCores: this.getVirtualCores()
-        };
-      }
     } else if (appType === this.GLOBALS.etlRealtime) {
       config.instances = this.getInstance();
+    }
+
+    if (this.getMemoryMb() || this.getVirtualCores()) {
+      config.resources = {
+        memoryMb: this.getMemoryMb(),
+        virtualCores: this.getVirtualCores()
+      };
     }
 
     if (this.state.description) {
