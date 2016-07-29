@@ -119,6 +119,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -1061,6 +1062,20 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
     }
   }
 
+  // TODO: move this method?
+
+  // helper method to throw only ExploreException and SQLException, since we know that the callables used
+  // only throw those checked exceptions
+  private <T> T doAs(NamespaceId namespaceId, Callable<T> callable) throws ExploreException, SQLException {
+    try {
+      return impersonator.doAs(namespaceId, callable);
+    } catch (ExploreException | HiveSQLException e) {
+      throw e;
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
   private List<ColumnDesc> getResultSchemaInternal(OperationHandle operationHandle) throws SQLException {
     ImmutableList.Builder<ColumnDesc> listBuilder = ImmutableList.builder();
     if (operationHandle.hasResultSet()) {
@@ -1073,7 +1088,7 @@ public abstract class BaseHiveExploreService extends AbstractIdleService impleme
     return listBuilder.build();
   }
 
-  private void setCurrentDatabase(String dbName) throws Throwable {
+  private void setCurrentDatabase(String dbName) {
     SessionState.get().setCurrentDatabase(dbName);
   }
 
