@@ -43,9 +43,10 @@ my-realtime-pipeline-settings {
             &:last-child {
               margin: 10px 0;
             }
-            .form-control,
             .control-label {
-              width: 80px;
+              &:first-child {
+                width: 80px;
+              }
             }
             .control-label {
               display: inline-block;
@@ -53,6 +54,7 @@ my-realtime-pipeline-settings {
             }
             .form-control {
               margin: 0 10px;
+              width: 80px;
             }
           }
         }

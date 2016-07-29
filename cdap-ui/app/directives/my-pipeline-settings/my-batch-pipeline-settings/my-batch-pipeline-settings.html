@@ -69,7 +69,7 @@
               Spark
           </label>
         </form>
-        <div class="form resource-container">
+        <div class="form-horizontal resource-container">
           <div ng-click="MyBatchPipelineSettingsCtrl.showResourcesView()">
             <i class="fa fa-info-circle"
                uib-tooltip="Resources don't take any effect in standalone environment."
@@ -94,7 +94,7 @@
                      type="number"
                      ng-model="MyBatchPipelineSettingsCtrl.memoryMb"
                      ng-change="MyBatchPipelineSettingsCtrl.onMemoryMbChange()">
-              <span>mb</span>
+              <label class="control-label">MB</span>
             </div>
           </div>
         </div>

@@ -24,7 +24,7 @@ my-batch-pipeline-settings {
     }
     my-card {
       &.engine {
-        flex: 0.2;
+        flex: 0.3;
         label {
           font-weight: 500;
           color: gray;
@@ -50,15 +50,17 @@ my-batch-pipeline-settings {
               &:last-child {
                 margin: 10px 0;
               }
-              .form-control,
               .control-label {
-                width: 75px;
+                &:first-child {
+                  width: 80px;
+                }
               }
               .control-label {
                 display: inline-block;
                 text-align: right;
               }
               .form-control {
+                width: 80px;
                 margin: 0 10px;
               }
             }
@@ -66,7 +68,7 @@ my-batch-pipeline-settings {
         }
       }
       &.schedule {
-        flex: 0.8;
+        flex: 0.7;
         margin-right: 10px;
         label {
           font-weight: 500;

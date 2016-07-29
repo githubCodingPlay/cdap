@@ -24,7 +24,9 @@
         <label class="control-label">Instances</label>
       </div>
     </my-card>
-    <my-card data-title="Resources" class="resources">
+    <my-card data-title="Resources"
+             data-tooltip="MyRealtimePipelineSettingsCtrl.isStandaloneMessage"
+             class="resources">
       <div class="resource-holder">
         <div class="resource-group">
           <label class="control-label"> Virtual Cores </label>
@@ -41,7 +43,7 @@
                  min="1"
                  ng-model="MyRealtimePipelineSettingsCtrl.memoryMb"
                  ng-change="MyRealtimePipelineSettingsCtrl.onMemoryMbChange()">
-          <span>mb</span>
+          <label class="control-label">MB</span>
         </div>
       </div>
     </my-card>
