@@ -49,6 +49,7 @@ import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import co.cask.cdap.test.ApplicationManager;
 import co.cask.cdap.test.ArtifactManager;
 import co.cask.cdap.test.DataSetManager;
+import co.cask.cdap.test.FlowManager;
 import co.cask.cdap.test.MapReduceManager;
 import co.cask.cdap.test.ServiceManager;
 import co.cask.cdap.test.SlowTests;
@@ -86,6 +87,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Unit tests with authorization enabled.
@@ -192,6 +194,61 @@ public class AuthorizationTest extends TestBase {
 
   @Test
   @Category(SlowTests.class)
+  public void testFlowStreamAuth() throws Exception {
+    createAuthNamespace();
+    Authorizer authorizer = getAuthorizer();
+    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), StreamAuthApp.class);
+    final FlowManager flowManager = appManager.getFlowManager(StreamAuthApp.FLOW);
+    StreamId streamId = new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM);
+    StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
+    streamManager.send("Auth");
+    flowManager.start();
+    Tasks.waitFor(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        DataSetManager<KeyValueTable> kvTable = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
+        return kvTable.get().read("Auth") != null;
+      }
+    }, 5, TimeUnit.SECONDS);
+    flowManager.stop();
+    flowManager.waitForFinish(5, TimeUnit.SECONDS);
+
+    // Now revoke write permission for Alice on that stream (revoke ALL and then grant everything other than READ)
+    authorizer.revoke(streamId, ALICE, ImmutableSet.of(Action.ALL));
+    authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.WRITE, Action.ADMIN, Action.EXECUTE));
+    streamManager.send("Security");
+    flowManager.start();
+    try {
+      Tasks.waitFor(true, new Callable<Boolean>() {
+        @Override
+        public Boolean call() throws Exception {
+          DataSetManager<KeyValueTable> kvTable = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
+          return kvTable.get().read("Security") != null;
+        }
+      }, 3, TimeUnit.SECONDS);
+      Assert.fail("'Security' StreamEvent should not have been processed.");
+    } catch (TimeoutException ex) {
+      // expected
+    }
+    flowManager.stop();
+    flowManager.waitForFinish(5, TimeUnit.SECONDS);
+
+    authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.READ));
+    flowManager.start();
+    Tasks.waitFor(true, new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        DataSetManager<KeyValueTable> kvTable = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
+        return kvTable.get().read("Security") != null;
+      }
+    }, 5, TimeUnit.SECONDS);
+    flowManager.stop();
+    flowManager.waitForFinish(5, TimeUnit.SECONDS);
+    appManager.delete();
+  }
+
+  @Test
+  @Category(SlowTests.class)
   public void testWorkerStreamAuth() throws Exception {
     createAuthNamespace();
     Authorizer authorizer = getAuthorizer();
@@ -209,7 +266,7 @@ public class AuthorizationTest extends TestBase {
     StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
     Assert.assertEquals(5, streamManager.getEvents(0, Long.MAX_VALUE, Integer.MAX_VALUE).size());
 
-    // Now revoke write permission for Alice on that stream (revoke ALL and then grant everything other than READ)
+    // Now revoke write permission for Alice on that stream (revoke ALL and then grant everything other than WRITE)
     authorizer.revoke(streamId, ALICE, ImmutableSet.of(Action.ALL));
     authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.READ, Action.ADMIN, Action.EXECUTE));
     workerManager.start();

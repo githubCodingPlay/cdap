@@ -16,11 +16,16 @@
 
 package co.cask.cdap.test.app;
 
+import co.cask.cdap.api.annotation.ProcessInput;
+import co.cask.cdap.api.annotation.UseDataSet;
 import co.cask.cdap.api.app.AbstractApplication;
 import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
+import co.cask.cdap.api.flow.AbstractFlow;
+import co.cask.cdap.api.flow.flowlet.AbstractFlowlet;
+import co.cask.cdap.api.flow.flowlet.StreamEvent;
 import co.cask.cdap.api.mapreduce.AbstractMapReduce;
 import co.cask.cdap.api.mapreduce.MapReduceContext;
 import co.cask.cdap.api.worker.AbstractWorker;
@@ -42,6 +47,7 @@ public class StreamAuthApp extends AbstractApplication {
   public static final String MAPREDUCE = "MRCopy";
   public static final String KVTABLE = "kvtable";
   public static final String WORKER = "StreamWriter";
+  public static final String FLOW = "FetchFlow";
 
   @Override
   public void configure() {
@@ -51,6 +57,29 @@ public class StreamAuthApp extends AbstractApplication {
     createDataset(KVTABLE, KeyValueTable.class);
     addMapReduce(new CopyMapReduce());
     addWorker(new StreamWriter());
+    addFlow(new FetchFlow());
+  }
+
+  public static class FetchFlow extends AbstractFlow {
+    @Override
+    protected void configure() {
+      super.configure();
+      setName(FLOW);
+      addFlowlet(new StreamFetchFlowlet());
+      connectStream(STREAM, new StreamFetchFlowlet());
+    }
+  }
+
+  public static class StreamFetchFlowlet extends AbstractFlowlet {
+
+    @UseDataSet(KVTABLE)
+    KeyValueTable kvTable;
+
+    @ProcessInput(maxRetries = 3)
+    public void process(StreamEvent event) {
+      String body = Bytes.toString(event.getBody());
+      kvTable.write(body, body);
+    }
   }
 
   public static class CopyMapReduce extends AbstractMapReduce {
