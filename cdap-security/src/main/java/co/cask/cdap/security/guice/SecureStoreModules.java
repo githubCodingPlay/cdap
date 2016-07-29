@@ -88,7 +88,7 @@ public class SecureStoreModules extends RuntimeModule {
     public T get() {
       if (!SecureStoreUtils.isKMSBacked(cConf)) {
         throw new IllegalArgumentException("File based secure store is not supported in distributed mode. " +
-                                             "To be able to use secure store in a distributed environment you" +
+                                             "To be able to use secure store in a distributed environment you " +
                                              "will need to use the Hadoop KMS based provider.");
       }
       try {
