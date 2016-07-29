@@ -23,7 +23,6 @@ import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.discovery.EndpointStrategy;
 import co.cask.cdap.common.discovery.RandomEndpointStrategy;
-import co.cask.cdap.common.kerberos.SecurityUtil;
 import co.cask.cdap.data2.metadata.lineage.AccessType;
 import co.cask.cdap.data2.metadata.writer.LineageWriter;
 import co.cask.cdap.data2.registry.RuntimeUsageRegistry;
@@ -73,7 +72,7 @@ public class DefaultStreamWriter implements StreamWriter {
   private final Id.Run run;
   private final LineageWriter lineageWriter;
   private final AuthenticationContext authenticationContext;
-  private final boolean kerberosEnabled;
+  private final boolean authorizationEnabled;
 
   @Inject
   public DefaultStreamWriter(@Assisted("run") Id.Run run,
@@ -91,7 +90,7 @@ public class DefaultStreamWriter implements StreamWriter {
     this.isStreamRegistered = Maps.newConcurrentMap();
     this.runtimeUsageRegistry = runtimeUsageRegistry;
     this.authenticationContext = authenticationContext;
-    this.kerberosEnabled = SecurityUtil.isKerberosEnabled(cConf);
+    this.authorizationEnabled = cConf.getBoolean(Constants.Security.Authorization.ENABLED);
   }
 
   private URL getStreamURL(String stream) throws IOException {
@@ -173,8 +172,8 @@ public class DefaultStreamWriter implements StreamWriter {
     connection.setReadTimeout(15000);
     connection.setConnectTimeout(15000);
     connection.setRequestProperty(HttpHeaders.CONTENT_TYPE, contentType);
-    if (kerberosEnabled) {
-      connection.setRequestProperty(Constants.Security.Headers.USER_ID, getUserId());
+    if (authorizationEnabled) {
+      connection.setRequestProperty(Constants.Security.Headers.USER_ID, authenticationContext.getPrincipal().getName());
     }
     connection.setDoOutput(true);
     connection.setChunkedStreamingMode(0);
@@ -190,14 +189,10 @@ public class DefaultStreamWriter implements StreamWriter {
   }
 
   private HttpRequest.Builder addUserIdHeader(HttpRequest.Builder builder) throws IOException {
-    if (!kerberosEnabled) {
+    if (!authorizationEnabled) {
       return builder;
     }
-    return builder.addHeader(Constants.Security.Headers.USER_ID, getUserId());
-  }
-
-  private String getUserId() {
-    return authenticationContext.getPrincipal().getName();
+    return builder.addHeader(Constants.Security.Headers.USER_ID, authenticationContext.getPrincipal().getName());
   }
 
   private void registerStream(Id.Stream stream) {

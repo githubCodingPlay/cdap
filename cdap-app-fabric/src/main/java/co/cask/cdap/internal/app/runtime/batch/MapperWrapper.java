@@ -84,8 +84,6 @@ public class MapperWrapper extends Mapper {
     AuthorizationEnforcer authorizationEnforcer = classLoader.getTaskContextProvider().getAuthorizationEnforcer();
     AuthenticationContext authenticationContext = classLoader.getTaskContextProvider().getAuthenticationContext();
 
-    EntityId entityId = null;
-
     InputSplit inputSplit = context.getInputSplit();
     if (inputSplit instanceof TaggedInputSplit) {
       TaggedInputSplit taggedInputSplit = (TaggedInputSplit) inputSplit;
@@ -94,6 +92,7 @@ public class MapperWrapper extends Mapper {
     }
 
     // Set the entityId to verify access permissions.
+    EntityId entityId = null;
     if (inputSplit instanceof StreamInputSplit) {
       entityId = ((StreamInputSplit) inputSplit).getStreamId();
     }
