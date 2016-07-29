@@ -15,9 +15,10 @@
  */
 
 class HydratorPlusPlusConfigStore {
-  constructor(HydratorPlusPlusConfigDispatcher, HydratorPlusPlusCanvasFactory, GLOBALS, mySettings, HydratorPlusPlusConsoleActions, $stateParams, NonStorePipelineErrorFactory, HydratorPlusPlusHydratorService, $q, HydratorPlusPlusPluginConfigFactory, uuid, $state, HYDRATOR_DEFAULT_VALUES){
+  constructor(HydratorPlusPlusConfigDispatcher, HydratorPlusPlusCanvasFactory, GLOBALS, mySettings, HydratorPlusPlusConsoleActions, $stateParams, NonStorePipelineErrorFactory, HydratorPlusPlusHydratorService, $q, HydratorPlusPlusPluginConfigFactory, uuid, $state, HYDRATOR_DEFAULT_VALUES, myHelpers){
     this.state = {};
     this.mySettings = mySettings;
+    this.myHelpers = myHelpers;
     this.HydratorPlusPlusConsoleActions = HydratorPlusPlusConsoleActions;
     this.HydratorPlusPlusCanvasFactory = HydratorPlusPlusCanvasFactory;
     this.GLOBALS = GLOBALS;
@@ -38,6 +39,8 @@ class HydratorPlusPlusConfigStore {
     this.hydratorPlusPlusConfigDispatcher.register('onPluginEdit', this.editNodeProperties.bind(this));
     this.hydratorPlusPlusConfigDispatcher.register('onSetSchedule', this.setSchedule.bind(this));
     this.hydratorPlusPlusConfigDispatcher.register('onSetInstance', this.setInstance.bind(this));
+    this.hydratorPlusPlusConfigDispatcher.register('onSetVirtualCores', this.setVirtualCores.bind(this));
+    this.hydratorPlusPlusConfigDispatcher.register('onSetMemoryMb', this.setMemoryMb.bind(this));
     this.hydratorPlusPlusConfigDispatcher.register('onSaveAsDraft', this.saveAsDraft.bind(this));
     this.hydratorPlusPlusConfigDispatcher.register('onInitialize', this.init.bind(this));
     this.hydratorPlusPlusConfigDispatcher.register('onSchemaPropagationDownStream', this.propagateIOSchemas.bind(this));
@@ -203,6 +206,12 @@ class HydratorPlusPlusConfigStore {
     if ( this.GLOBALS.etlBatchPipelines.indexOf(appType) !== -1) {
       config.schedule = this.getSchedule();
       config.engine = this.getEngine();
+      if (this.getMemoryMb() || this.getVirtualCores()) {
+        config.resources = {
+          memoryMb: this.getMemoryMb(),
+          virtualCores: this.getVirtualCores()
+        };
+      }
     } else if (appType === this.GLOBALS.etlRealtime) {
       config.instances = this.getInstance();
     }
@@ -603,6 +612,20 @@ class HydratorPlusPlusConfigStore {
   setInstance(instances) {
     this.state.config.instances = instances;
   }
+  setVirtualCores(virtualCores) {
+    this.state.config.resources = this.state.config.resources || {};
+    this.state.config.resources.virtualCores = virtualCores;
+  }
+  getVirtualCores() {
+    return this.myHelpers.objectQuery(this.state, 'config', 'resources', 'virtualCores');
+  }
+  getMemoryMb() {
+    return this.myHelpers.objectQuery(this.state, 'config', 'resources', 'memoryMb');
+  }
+  setMemoryMb(memoryMb) {
+    this.state.config.resources = this.state.config.resources || {};
+    this.state.config.resources.memoryMb = memoryMb;
+  }
 
   setComments(comments) {
     this.state.config.comments = comments;
@@ -696,6 +719,6 @@ class HydratorPlusPlusConfigStore {
   }
 }
 
-HydratorPlusPlusConfigStore.$inject = ['HydratorPlusPlusConfigDispatcher', 'HydratorPlusPlusCanvasFactory', 'GLOBALS', 'mySettings', 'HydratorPlusPlusConsoleActions', '$stateParams', 'NonStorePipelineErrorFactory', 'HydratorPlusPlusHydratorService', '$q', 'HydratorPlusPlusPluginConfigFactory', 'uuid', '$state', 'HYDRATOR_DEFAULT_VALUES'];
+HydratorPlusPlusConfigStore.$inject = ['HydratorPlusPlusConfigDispatcher', 'HydratorPlusPlusCanvasFactory', 'GLOBALS', 'mySettings', 'HydratorPlusPlusConsoleActions', '$stateParams', 'NonStorePipelineErrorFactory', 'HydratorPlusPlusHydratorService', '$q', 'HydratorPlusPlusPluginConfigFactory', 'uuid', '$state', 'HYDRATOR_DEFAULT_VALUES', 'myHelpers'];
 angular.module(`${PKG.name}.feature.hydratorplusplus`)
   .service('HydratorPlusPlusConfigStore', HydratorPlusPlusConfigStore);

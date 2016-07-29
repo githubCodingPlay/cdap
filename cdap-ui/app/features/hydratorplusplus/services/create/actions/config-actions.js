@@ -59,6 +59,12 @@ class HydratorPlusPlusConfigActions {
   setInstance(instance) {
     this.dispatcher.dispatch('onSetInstance', instance);
   }
+  setVirtualCores(virtualCores) {
+    this.dispatcher.dispatch('onSetVirtualCores', virtualCores);
+  }
+  setMemoryMb(memoryMb) {
+    this.dispatcher.dispatch('onSetMemoryMb', memoryMb);
+  }
   addPostAction(config) {
     this.dispatcher.dispatch('onAddPostAction', config);
   }
