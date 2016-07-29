@@ -15,9 +15,12 @@
  */
 
 angular.module(PKG.name + '.commons')
-  .controller('MyRealtimePipelineSettingsCtrl', function($scope) {
+  .controller('MyRealtimePipelineSettingsCtrl', function($scope, MY_CONFIG) {
     this.instance = this.store.getInstance();
     this._isDisabled = this.isDisabled === 'true';
+    this.isDistributed = MY_CONFIG.isEnterprise ? true : false;
+    this.memoryMb = this.store.getMemoryMb();
+    this.virtualCores = this.store.getVirtualCores();
     if (!this._isDisabled) {
       // Debounce method for setting instance
       const setInstance = _.debounce( () => {
@@ -26,4 +29,10 @@ angular.module(PKG.name + '.commons')
       var unsub = $scope.$watch('MyRealtimePipelineSettingsCtrl.instance' , setInstance);
       $scope.$on('$destroy', unsub);
     }
+    this.onMemoryMbChange = () => {
+      this.actionCreator.setMemoryMb(this.memoryMb);
+    };
+    this.onVirtualCoresChange = () => {
+      this.actionCreator.setVirtualCores(this.virtualCores);
+    };
   });
