@@ -62,14 +62,30 @@ public class PartitionCorrectorTestRun extends TestFrameworkTestBase {
     dropAllPartitions();
     validateAllPartitions(0);
 
+    // all partitions are missing. drop/recrete Hive table and add all partitions
     WorkerManager workerManager = appManager.getWorkerManager("PartitionWorker")
       .start(ImmutableMap.of(
         "dataset.name", "tpfs",
         "batch.size", "5",
         "verbose", "true"));
     workerManager.waitForFinish(60, TimeUnit.SECONDS);
-
     validateAllPartitions(numPartitions);
+
+    dropAllPartitions();
+    for (int i = numPartitions; i < 2 * numPartitions; i++) {
+      createPartition(tpfsManager, baseTime + TimeUnit.MINUTES.toMillis(1) * i, i);
+    }
+    validateAllPartitions(numPartitions);
+
+    // some partitions are missing, some present keep the Hive table and try to add all partitions
+    workerManager = appManager.getWorkerManager("PartitionWorker")
+      .start(ImmutableMap.of(
+        "dataset.name", "tpfs",
+        "batch.size", "8",
+        "verbose", "false",
+        "disable.explore", "false"));
+    workerManager.waitForFinish(60, TimeUnit.SECONDS);
+    validateAllPartitions(2 * numPartitions);
   }
 
   private void validateAllPartitions(int numPartitions) throws Exception {
