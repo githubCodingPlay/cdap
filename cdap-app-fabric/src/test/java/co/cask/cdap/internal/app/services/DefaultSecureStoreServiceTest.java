@@ -64,7 +64,6 @@ public class DefaultSecureStoreServiceTest {
 
   private static SecureStoreService secureStoreService;
   private static Authorizer authorizer;
-  private static RemoteSystemOperationsService remoteSystemOperationsService;
 
   @ClassRule
   public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -79,7 +78,8 @@ public class DefaultSecureStoreServiceTest {
     injector.getInstance(NamespaceAdmin.class).create(NamespaceMeta.DEFAULT);
     secureStoreService = injector.getInstance(SecureStoreService.class);
     authorizer.revoke(NamespaceId.DEFAULT, ALICE, Collections.singleton(Action.ALL));
-    remoteSystemOperationsService = injector.getInstance(RemoteSystemOperationsService.class);
+    RemoteSystemOperationsService remoteSystemOperationsService =
+      injector.getInstance(RemoteSystemOperationsService.class);
     remoteSystemOperationsService.startAndWait();
   }
 
