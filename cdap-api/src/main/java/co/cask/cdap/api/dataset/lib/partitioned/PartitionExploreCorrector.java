@@ -38,6 +38,10 @@ public class PartitionExploreCorrector extends AbstractApplication {
     addWorker(new PartitionWorker());
   }
 
+  /**
+   * This worker can be used to bring a partitioned file set in sync with Explore. Run the worker with runtime
+   * arguments: dataset.name=<name> [ verbose=<boolean> ] [ batch.size=<int> ] [ disable.explore=<boolean> ].
+   */
   public static class PartitionWorker extends AbstractWorker {
     @Override
     public void run() {
