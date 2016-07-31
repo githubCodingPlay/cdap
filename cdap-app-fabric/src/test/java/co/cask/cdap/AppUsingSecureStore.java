@@ -51,7 +51,7 @@ public class AppUsingSecureStore extends AbstractApplication {
   public static final String STREAM_NAME = "testStream";
   public static final String KEY = "key";
   public static final String VALUE = "value";
-  private static final String NAMESPACE = "namespace";
+  private static final String NAMESPACE = "testspace";
 
   @Override
   public void configure() {
