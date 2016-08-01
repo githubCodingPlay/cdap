@@ -28,7 +28,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
   this.setProgramMetadata = (status) => {
     this.programStatus = status;
 
-    if(this.entityName.length === 0) {
+    if(this.entityName && this.entityName.length === 0) {
       this.entityName = this.programId;
     }
 
@@ -101,6 +101,8 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
     function RawLogsModalCtrl($scope, MyCDAPDataSource, rAppId, rProgramType, rProgramId, rRunId, rStartTimeSec) {
       var modalDataSrc = new MyCDAPDataSource($scope);
 
+      this.rawIsLoaded = false;
+
       this.toggleMaximizedView = (isExpanded) => {
         this.windowMode = (isExpanded) ? 'expand' : 'regular';
       };
@@ -111,6 +113,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
         _cdapNsPath: `/apps/${rAppId}/${rProgramType}/${rProgramId}/runs/${rRunId}/logs?start=${rStartTimeSec}`
       }).then((res) => {
         this.rawDataResponse = res;
+        this.rawIsLoaded = true;
       });
 
       this.applicationName = rProgramId;
