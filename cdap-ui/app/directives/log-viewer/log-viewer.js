@@ -35,7 +35,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
     this.totalCount = 0;
     this.fullScreen = false;
     this.applicationIsRunning = false;
-    this.programStatus = 'STOPPED';
+    this.programStatus = 'Not Started';
 
     this.configOptions = {
       time: true,
@@ -154,7 +154,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
     runId : this.runId
   }).$promise.then(
     (statusRes) => {
-      setProgramStatus(statusRes.status);
+      setProgramMetadata(statusRes.status);
     },
     (statusErr) => {
       console.log('ERROR: ', statusErr);
@@ -282,7 +282,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
       runId : this.runId
     }).$promise.then(
       (statusRes) => {
-        setProgramStatus(statusRes.status);
+        setProgramMetadata(statusRes.status);
         if(this.statusType === 0){
           this.applicationIsRunning = true;
           if (!pollPromise) {
@@ -449,8 +449,13 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
       });
   };
 
-  const setProgramStatus = (status) => {
+  const setProgramMetadata = (status) => {
     this.programStatus = status;
+
+    if(this.statusName.length === 0) {
+      this.statusName = this.programId;
+    }
+
     switch(status){
       case 'RUNNING':
       case 'STARTED':
@@ -466,6 +471,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
         this.statusType = 2;
         break;
       default:
+        this.statusType = 3;
         break;
     }
   };
@@ -598,7 +604,6 @@ angular.module(PKG.name + '.commons')
         programId: '@',
         runId: '@',
         getDownloadFilename: '&',
-        integratedWith: '@',
         statusName: '@'
       },
       bindToController: true
