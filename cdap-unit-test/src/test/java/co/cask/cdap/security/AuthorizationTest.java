@@ -27,7 +27,6 @@ import co.cask.cdap.common.utils.Tasks;
 import co.cask.cdap.internal.test.AppJarHelper;
 import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.ProgramRunStatus;
-import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.artifact.AppRequest;
 import co.cask.cdap.proto.artifact.ArtifactSummary;
 import co.cask.cdap.proto.id.ApplicationId;
@@ -199,7 +198,7 @@ public class AuthorizationTest extends TestBase {
     Authorizer authorizer = getAuthorizer();
     ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), StreamAuthApp.class);
     final FlowManager flowManager = appManager.getFlowManager(StreamAuthApp.FLOW);
-    StreamId streamId = new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM);
+    StreamId streamId = AUTH_NAMESPACE.stream(StreamAuthApp.STREAM);
     StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
     streamManager.send("Auth");
     flowManager.start();
@@ -213,7 +212,7 @@ public class AuthorizationTest extends TestBase {
     flowManager.stop();
     flowManager.waitForFinish(5, TimeUnit.SECONDS);
 
-    // Now revoke write permission for Alice on that stream (revoke ALL and then grant everything other than READ)
+    // Now revoke read permission for Alice on that stream (revoke ALL and then grant everything other than READ)
     authorizer.revoke(streamId, ALICE, ImmutableSet.of(Action.ALL));
     authorizer.grant(streamId, ALICE, ImmutableSet.of(Action.WRITE, Action.ADMIN, Action.EXECUTE));
     streamManager.send("Security");
@@ -262,7 +261,7 @@ public class AuthorizationTest extends TestBase {
       // workaround since we want worker job to be de-listed from the running processes to allow cleanup to happen
       Assert.assertTrue(e.getCause() instanceof BadRequestException);
     }
-    StreamId streamId = new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM);
+    StreamId streamId = AUTH_NAMESPACE.stream(StreamAuthApp.STREAM);
     StreamManager streamManager = getStreamManager(AUTH_NAMESPACE.toId(), StreamAuthApp.STREAM);
     Assert.assertEquals(5, streamManager.getEvents(0, Long.MAX_VALUE, Integer.MAX_VALUE).size());
 
@@ -304,7 +303,7 @@ public class AuthorizationTest extends TestBase {
     DataSetManager<KeyValueTable> kvManager = getDataset(AUTH_NAMESPACE.toId(), StreamAuthApp.KVTABLE);
     KeyValueTable kvTable = kvManager.get();
     byte[] value = kvTable.read("Hello");
-    Assert.assertArrayEquals(value, Bytes.toBytes("Hello"));
+    Assert.assertArrayEquals(Bytes.toBytes("Hello"), value);
     kvTable.close();
     // Since Alice had full permissions, she should be able to execute the MR job successfully
     Tasks.waitFor(1, new Callable<Integer>() {
@@ -314,8 +313,7 @@ public class AuthorizationTest extends TestBase {
       }
     }, 5, TimeUnit.SECONDS);
 
-    ProgramId mrId = new ProgramId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.APP, ProgramType.MAPREDUCE,
-                                   StreamAuthApp.MAPREDUCE);
+    ProgramId mrId = AUTH_NAMESPACE.app(StreamAuthApp.APP).mr(StreamAuthApp.MAPREDUCE);
     authorizer.grant(mrId.getNamespaceId(), BOB, ImmutableSet.of(Action.ALL));
     ArtifactSummary artifactSummary = appManager.getInfo().getArtifact();
 
@@ -324,10 +322,8 @@ public class AuthorizationTest extends TestBase {
     authorizer.grant(artifactId, BOB, ImmutableSet.of(Action.ALL));
     authorizer.grant(mrId.getParent(), BOB, ImmutableSet.of(Action.ALL));
     authorizer.grant(mrId, BOB, ImmutableSet.of(Action.ALL));
-    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM), BOB,
-                     ImmutableSet.of(Action.ADMIN));
-    authorizer.grant(new DatasetId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.KVTABLE), BOB,
-                     ImmutableSet.of(Action.ALL));
+    authorizer.grant(AUTH_NAMESPACE.stream(StreamAuthApp.STREAM), BOB, ImmutableSet.of(Action.ADMIN));
+    authorizer.grant(AUTH_NAMESPACE.dataset(StreamAuthApp.KVTABLE), BOB, ImmutableSet.of(Action.ALL));
     streamManager.send("World");
 
     // Switch user to Bob. Note that he doesn't have READ access on the stream.
@@ -354,8 +350,7 @@ public class AuthorizationTest extends TestBase {
     kvTable.close();
 
     // Now grant Bob, READ access on the stream. MR job should execute successfully now.
-    authorizer.grant(new StreamId(AUTH_NAMESPACE.getNamespace(), StreamAuthApp.STREAM), BOB,
-                     ImmutableSet.of(Action.READ));
+    authorizer.grant(AUTH_NAMESPACE.stream(StreamAuthApp.STREAM), BOB, ImmutableSet.of(Action.READ));
     mrManager.start();
     mrManager.waitForFinish(10, TimeUnit.SECONDS);
     try {

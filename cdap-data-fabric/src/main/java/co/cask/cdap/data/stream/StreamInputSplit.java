@@ -17,6 +17,7 @@ package co.cask.cdap.data.stream;
 
 import co.cask.cdap.proto.id.StreamId;
 import com.google.common.base.Objects;
+import com.google.gson.Gson;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
@@ -31,6 +32,7 @@ import javax.annotation.Nullable;
  * Represents a mapreduce InputSplit for stream.
  */
 public final class StreamInputSplit extends FileSplit implements Writable {
+  private static final Gson GSON = new Gson();
 
   private StreamId streamId;
   private Path indexPath;
@@ -97,7 +99,7 @@ public final class StreamInputSplit extends FileSplit implements Writable {
   @Override
   public void write(DataOutput out) throws IOException {
     super.write(out);
-    WritableUtils.writeString(out, streamId.toString());
+    WritableUtils.writeString(out, GSON.toJson(streamId));
     if (indexPath == null) {
       out.writeBoolean(false);
     } else {
@@ -111,7 +113,7 @@ public final class StreamInputSplit extends FileSplit implements Writable {
   @Override
   public void readFields(DataInput in) throws IOException {
     super.readFields(in);
-    streamId = StreamId.fromString(WritableUtils.readString(in));
+    streamId = GSON.fromJson(WritableUtils.readString(in), StreamId.class);
     boolean hasIndex = in.readBoolean();
     if (hasIndex) {
       indexPath = new Path(WritableUtils.readString(in));

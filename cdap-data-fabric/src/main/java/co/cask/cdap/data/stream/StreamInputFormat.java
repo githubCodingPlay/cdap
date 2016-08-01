@@ -139,7 +139,7 @@ public class StreamInputFormat<K, V> extends InputFormat<K, V> {
    * @param streamId {@link StreamId} id of the stream.
    */
   public static void setStreamId(Configuration conf, StreamId streamId) {
-    conf.set(STREAM_ID, streamId.toString());
+    conf.set(STREAM_ID, GSON.toJson(streamId));
   }
 
   /**
@@ -235,7 +235,7 @@ public class StreamInputFormat<K, V> extends InputFormat<K, V> {
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     Configuration conf = context.getConfiguration();
-    StreamId streamId = StreamId.fromString(conf.get(STREAM_ID));
+    StreamId streamId = GSON.fromJson(conf.get(STREAM_ID), StreamId.class);
     long ttl = conf.getLong(STREAM_TTL, Long.MAX_VALUE);
     long endTime = conf.getLong(EVENT_END_TIME, Long.MAX_VALUE);
     long startTime = Math.max(conf.getLong(EVENT_START_TIME, 0L), getCurrentTime() - ttl);

@@ -69,11 +69,9 @@ public final class DistributedMapReduceTaskContextProvider extends MapReduceTask
                                                                        authorizationEnforcementService).get();
       // All services should be started
       for (ListenableFuture<State> future : startFutures) {
-        Preconditions.checkState(future.get() == State.RUNNING,
-                                 "Failed to start services: zkClient %s, kafkaClient %s, metricsCollection %s, " +
-                                   "authorizationEnforcementService %s",
-                                 zkClientService.state(), kafkaClientService.state(), metricsCollectionService.state(),
-                                 authorizationEnforcementService.state());
+        Preconditions.checkState(future.get() == State.RUNNING, "Failed to start services: %s, %s, %s, %s",
+                                 zkClientService, kafkaClientService, metricsCollectionService,
+                                 authorizationEnforcementService);
       }
       logAppenderInitializer.initialize();
     } catch (Exception e) {
