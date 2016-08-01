@@ -82,6 +82,10 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
       }).then((res) => {
         this.rawDataResponse = res;
       });
+
+      this.applicationName = rProgramId;
+
+      this.startTime = formatDate(new Date(rStartTimeSec*1000));
     }
 
     this.$uibModal.open({
@@ -136,6 +140,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
       this.setDefault();
       return;
     }
+
     this.startTimeSec = Math.floor(this.logStartTime.getTime()/1000);
     requestWithStartTime();
   });
