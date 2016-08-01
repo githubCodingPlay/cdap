@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * App which copies data from a stream to KVTable using a MapReduce program.
+ * App to test authorization in programs.
  */
 public class StreamAuthApp extends AbstractApplication {
 
