@@ -47,11 +47,11 @@ public class ListNamespacesCommand extends AbstractCommand {
   @Override
   public void perform(Arguments arguments, PrintStream output) throws Exception {
     Table table = Table.builder()
-      .setHeader("name", "description")
+      .setHeader("name", "description", "configs")
       .setRows(namespaceClient.list(), new RowMaker<NamespaceMeta>() {
         @Override
         public List<?> makeRow(NamespaceMeta object) {
-          return Lists.newArrayList(object.getName(), object.getDescription());
+          return Lists.newArrayList(object.getName(), object.getDescription(), object.getConfig().toString());
         }
       }).build();
     cliConfig.getTableRenderer().render(cliConfig, output, table);

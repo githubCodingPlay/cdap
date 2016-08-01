@@ -53,13 +53,11 @@ public class DescribeNamespaceCommand extends AbstractCommand {
     Id.Namespace namespace = Id.Namespace.from(arguments.get(ArgumentName.NAMESPACE_NAME.getName()));
     NamespaceMeta namespaceMeta = namespaceClient.get(namespace);
     Table table = Table.builder()
-      .setHeader("name", "description", "principal", "keytab path", "rootdir")
+      .setHeader("name", "description", "configs")
       .setRows(Lists.newArrayList(namespaceMeta), new RowMaker<NamespaceMeta>() {
         @Override
         public List<?> makeRow(NamespaceMeta object) {
-          return Lists.newArrayList(object.getName(), object.getDescription(),
-                                    object.getConfig().getPrincipal(), object.getConfig().getKeytabURI(),
-                                    object.getConfig().getRootDirectory());
+          return Lists.newArrayList(object.getName(), object.getDescription(), object.getConfig().toString());
         }
       }).build();
     cliConfig.getTableRenderer().render(cliConfig, output, table);
