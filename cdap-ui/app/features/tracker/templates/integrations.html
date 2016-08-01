@@ -143,16 +143,17 @@
     </div>
 
     <div class="row">
-      <div class="col-xs-12">
-      <my-log-viewer
-        namespace-id="{{IntegrationsController.logsParams.namespace}}"
-        app-id="{{IntegrationsController.logsParams.appId}}"
-        program-type="{{IntegrationsController.logsParams.programType}}"
-        program-id="{{IntegrationsController.logsParams.programId}}"
-        run-id="{{IntegrationsController.logsParams.runId}}"
-        entity-name="Cloudera Navigator">
-      </my-log-viewer>
-    </div>
+      <!-- FIXME: styling should not be applied to bootstrap container -->
+      <div class="col-xs-12 log-viewer-parent">
+        <my-log-viewer
+          namespace-id="{{IntegrationsController.logsParams.namespace}}"
+          app-id="{{IntegrationsController.logsParams.appId}}"
+          program-type="{{IntegrationsController.logsParams.programType}}"
+          program-id="{{IntegrationsController.logsParams.programId}}"
+          run-id="{{IntegrationsController.logsParams.runId}}"
+          entity-name="Cloudera Navigator">
+        </my-log-viewer>
+      </div>
     </div>
   </div>
 </div>
