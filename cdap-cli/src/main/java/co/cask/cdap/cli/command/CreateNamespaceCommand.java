@@ -21,6 +21,7 @@ import co.cask.cdap.cli.CLIConfig;
 import co.cask.cdap.cli.ElementType;
 import co.cask.cdap.cli.util.AbstractCommand;
 import co.cask.cdap.client.NamespaceClient;
+import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.common.cli.Arguments;
 import co.cask.common.cli.Command;
@@ -46,17 +47,27 @@ public class CreateNamespaceCommand extends AbstractCommand {
   public void perform(Arguments arguments, PrintStream output) throws Exception {
     String name = arguments.get(ArgumentName.NAMESPACE_NAME.toString());
     String description = arguments.get(ArgumentName.NAMESPACE_DESCRIPTION.toString(), "");
+    String principal = arguments.get(ArgumentName.NAMESPACE_PRINCIPAL.toString(), "");
+    String keytabPath = arguments.get(ArgumentName.NAMESPACE_KEYTAB_PATH.toString(), "");
+    String rootDir = arguments.get("rootdir", "");
+
+
     NamespaceMeta.Builder builder = new NamespaceMeta.Builder();
-    builder.setName(name).setDescription(description);
+    builder.setName(name).setDescription(description).setPrincipal(principal).setKeytabURI(keytabPath)
+    .setRootDirectory(rootDir);
     namespaceClient.create(builder.build());
+// create namespace bar
+// description ali/secure-autobuild-v510091-1000.dev.continuuity.net@CONTINUUITY.NET hdfs:///cdap/new.keytab
+//    namespaceClient.updateProperties(Id.Namespace.from(name), builder.build());
 
     output.println(String.format(SUCCESS_MSG, name));
   }
 
   @Override
   public String getPattern() {
-    return String.format("create namespace <%s> [<%s>]",
-                         ArgumentName.NAMESPACE_NAME, ArgumentName.NAMESPACE_DESCRIPTION);
+    return String.format("create namespace <%s> [<%s>] [<%s>] [<%s>] [<%s>]",
+                         ArgumentName.NAMESPACE_NAME, ArgumentName.NAMESPACE_DESCRIPTION,
+                         ArgumentName.NAMESPACE_PRINCIPAL, ArgumentName.NAMESPACE_KEYTAB_PATH, "rootdir");
   }
 
   @Override

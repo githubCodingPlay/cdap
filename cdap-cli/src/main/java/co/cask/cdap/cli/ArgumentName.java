@@ -78,6 +78,8 @@ public enum ArgumentName {
 
   NAMESPACE_NAME("namespace-name"),
   NAMESPACE_DESCRIPTION("namespace-description"),
+  NAMESPACE_PRINCIPAL("namespace-principal"),
+  NAMESPACE_KEYTAB_PATH("namespace-keytab-path"),
 
   INSTANCE("instance-id"),
   COMMAND_CATEGORY("command-category"),
