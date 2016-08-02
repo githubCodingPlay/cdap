@@ -30,6 +30,11 @@ public class AlreadyExistsException extends ConflictException {
     this.objectId = id;
   }
 
+  public AlreadyExistsException(Id id, String message) {
+    super(message);
+    this.objectId = id;
+  }
+
   public Id getObjectId() {
     return objectId;
   }

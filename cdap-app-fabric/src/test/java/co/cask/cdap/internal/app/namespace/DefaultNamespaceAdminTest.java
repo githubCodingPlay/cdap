@@ -162,6 +162,50 @@ public class DefaultNamespaceAdminTest extends AppFabricTestBase {
     } catch (BadRequestException e) {
       //expected
     }
+
+    //clean up
+    namespaceAdmin.delete(namespaceId);
+  }
+
+  @Test
+  public void testSameCustomMapping() throws Exception {
+
+    String namespace = "custompaceNamespace";
+    Id.Namespace namespaceId = Id.Namespace.from(namespace);
+    // check that root directory for a namespace cannot be updated
+    // create the custom directory since the namespace is being created with custom root directory it needs to exist
+    Location customlocation = namespacedLocationFactory.get(namespaceId);
+    Assert.assertTrue(customlocation.mkdirs());
+    NamespaceMeta nsMeta = new NamespaceMeta.Builder().setName(namespaceId)
+      .setRootDirectory(customlocation.toString()).setHBaseDatabase("hbasens").setHiveDatabase("hivedb").build();
+    namespaceAdmin.create(nsMeta);
+
+
+    // creating a new namespace with same location should fail
+    verifyAlreadyExist(new NamespaceMeta.Builder(nsMeta).setName("otherNamespace").build(), namespaceId);
+
+    // creating a new namespace with subdir should fail
+    Location subdirLocation = customlocation.append("subdir");
+    verifyAlreadyExist(new NamespaceMeta.Builder(nsMeta).setName("otherNamespace")
+                         .setRootDirectory(subdirLocation.toString()).build(), namespaceId);
+
+    // creating a new namespace with same hive database should fails
+    verifyAlreadyExist(new NamespaceMeta.Builder().setName("otherNamespace").setHiveDatabase("hivedb").build(),
+                       namespaceId);
+
+    // creating a new namespace with same hbase namespace should fail
+    verifyAlreadyExist(new NamespaceMeta.Builder().setName("otherNamespace").setHBaseDatabase("hbasens").build(),
+                       namespaceId);
+  }
+
+  private static void verifyAlreadyExist(NamespaceMeta namespaceMeta, Id.Namespace existingNamespace)
+    throws Exception {
+    try {
+      namespaceAdmin.create(namespaceMeta);
+      Assert.fail(String.format("Namespace '%s' should not have been creaated", namespaceMeta.getName()));
+    } catch (NamespaceAlreadyExistsException e) {
+      Assert.assertEquals(existingNamespace, e.getId());
+    }
   }
 
   private static void verifyNotFound(Id.Namespace namespaceId) throws Exception {
