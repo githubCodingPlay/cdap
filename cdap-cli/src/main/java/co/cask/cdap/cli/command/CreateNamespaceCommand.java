@@ -38,11 +38,11 @@ public class CreateNamespaceCommand extends AbstractCommand {
 
   private final NamespaceClient namespaceClient;
   private static final String NAMESPACE_PRINCIPAL = "principal";
-  private static final String NAMESPACE_KEYTAB_PATH = "keytab-path";
-  private static final String NAMESPACE_HBASE_NAMESPACE = "hbase-namespace";
-  private static final String NAMESPACE_HIVE_DATABASE = "hive-database";
-  private static final String NAMESPACE_ROOT_DIR = "root-dir";
-  private static final String NAMESPACE_SCHEDULER_QUEUENAME = "queuename";
+  private static final String NAMESPACE_KEYTAB_PATH = "keytabURI";
+  private static final String NAMESPACE_HBASE_NAMESPACE = "hbaseNamespace";
+  private static final String NAMESPACE_HIVE_DATABASE = "hiveDatabase";
+  private static final String NAMESPACE_ROOT_DIR = "rootDirectory";
+  private static final String NAMESPACE_SCHEDULER_QUEUENAME = "schedulerQueueName";
 
   @Inject
   public CreateNamespaceCommand(CLIConfig cliConfig, NamespaceClient namespaceClient) {
